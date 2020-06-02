@@ -32,6 +32,7 @@ void ATool_Shovel::OnActivate()
 		if (BlockingActor == nullptr)
 		{
 			TSoftObjectPtr<UDigActualizer> DigActualizer = WGS->TryRemoveDigActualizerFromGrid(ProbePosition);
+			DigActualizer.LoadSynchronous(); // #fixme?
 			if (DigActualizer.IsValid())
 			{
 				AAECharacter* OwnerCharacter = Cast<AAECharacter>(GetOwner());

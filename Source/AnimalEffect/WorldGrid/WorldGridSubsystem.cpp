@@ -244,6 +244,9 @@ bool UWorldGridSubsystem::RemoveActorFromGrid(AActor* Actor)
 
 bool UWorldGridSubsystem::TryPlaceDigActualizerOnGrid(TSoftObjectPtr<UDigActualizer> Actualizer, const FGridPosition& DesiredPosition)
 {
+	// we need to load this to know how to place it. #fixme
+	Actualizer.LoadSynchronous();
+
 	if (!Actualizer.IsValid())
 	{
 		UE_LOG(LogWorldGridSubsystem, Error, TEXT("Can't place invalid DigActualizer on grid"));
