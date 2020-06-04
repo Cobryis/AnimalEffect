@@ -13,7 +13,7 @@ UToolAsset::UToolAsset()
 
 
 ATool::ATool()
-	: AItem()
+	: AActor()
 {
 	MeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh"));
 	MeshComponent->SetupAttachment(GetRootComponent());

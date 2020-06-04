@@ -10,7 +10,7 @@
 #include "DropActor.generated.h"
 
 UCLASS()
-class ANIMALEFFECT_API ADropActor : public AActor, public IWorldGridActorInterface, public IPickupActorInterface
+class ANIMALEFFECT_API ADropActor : public AActor, public IPickupActorInterface
 {
 	GENERATED_BODY()
 
@@ -18,13 +18,7 @@ public:
 
 	ADropActor();
 
-	static ADropActor* NewDrop(const UObject* WorldContextObject, const FGridPosition& SpawnPosition, const FPickupData& PickupData, APawn* Instigator);
-
-	// BEGIN IWorldGridInterface
-	void GetWorldGridSize(int32& X, int32& Y) const override { X = Y = 1; }
-	void SetWorldGridPosition(const FGridPosition& InGridPosition) override;
-	void GetWorldGridPosition(FGridPosition& OutGridPosition) const override;
-	// END IWorldGridInterface
+	static ADropActor* NewDrop(const UObject* WorldContextObject, const FGridVector& SpawnPosition, const FPickupData& PickupData, APawn* Instigator);
 
 	// BEGIN IPickupInterface
 	bool CanPickup(APawn* PawnInstigator) const override { return true; }
@@ -40,9 +34,6 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Drop")
 	FText DropText;
-
-	UPROPERTY(BlueprintReadOnly, Category = "World Grid")
-	FGridPosition GridPosition;
 
 private:
 

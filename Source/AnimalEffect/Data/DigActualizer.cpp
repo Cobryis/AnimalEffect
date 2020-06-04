@@ -28,7 +28,7 @@ void ADigActualizerSpawner::BeginPlay()
 
 	UWorldGridSubsystem* UGS = GetWorld()->GetSubsystem<UWorldGridSubsystem>();
 
-	FGridPosition GridPosition;
+	FGridVector GridPosition;
 	if (UGS->GetGridPositionAtWorldLocation(GetActorLocation(), GridPosition))
 	{
 		UGS->TryPlaceDigActualizerOnGrid(Actualizer, GridPosition);

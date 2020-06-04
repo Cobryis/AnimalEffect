@@ -9,10 +9,9 @@ namespace
 	// i tried to generecize this but the UObjectAnnotation wouldn't take it
 	struct FPtrAnnotation
 	{
-		const UAEMetaAsset* AssetPtr;
+		const UAEMetaAsset* AssetPtr = nullptr;
 
-		FPtrAnnotation()
-		{}
+		FPtrAnnotation() = default;
 
 		FPtrAnnotation(const UAEMetaAsset* InAssetPtr)
 			: AssetPtr(InAssetPtr)

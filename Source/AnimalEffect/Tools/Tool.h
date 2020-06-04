@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "Items/Item.h"
+#include "Items/ItemAsset.h"
+
+#include "GameFramework/Actor.h"
 
 #include "Tool.generated.h"
 
@@ -20,7 +22,7 @@ public:
 class USkeletalMeshComponent;
 
 UCLASS(Abstract)
-class ANIMALEFFECT_API ATool : public AItem
+class ANIMALEFFECT_API ATool : public AActor
 {
 	GENERATED_BODY()
 

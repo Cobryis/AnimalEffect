@@ -8,6 +8,8 @@
 
 #include "WorldGridSubsystem.generated.h"
 
+class UAEMetaAsset;
+
 USTRUCT()
 struct FWorldGridConfig
 {
@@ -18,6 +20,22 @@ struct FWorldGridConfig
 
 	UPROPERTY(EditAnywhere, meta = (ClampMin = 10, ClampMax = 500))
 	float WorldScale = 100.f;
+
+};
+
+USTRUCT(BlueprintType)
+struct FWorldGridActorSpawnParameters
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite)
+	FGridVector DesiredPosition;
+
+	UPROPERTY(BlueprintReadWrite)
+	AActor* Owner = nullptr;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bCanAdjustPosition = false;
 
 };
 
@@ -39,43 +57,63 @@ class ANIMALEFFECT_API UWorldGridSubsystem : public UWorldSubsystem
 
 public:
 
+	static UWorldGridSubsystem* Get(const UObject* WorldContextObject);
+
 	UWorldGridSubsystem();
 
 	void Initialize(FSubsystemCollectionBase& Collection) override;
+	void Deinitialize() override;
 
-	bool IsValidPosition(const FGridPosition& Position) const;
+	bool IsValidPosition(const FGridVector& Position) const;
 
 	// 0 is sea level. 1 would be 1 cliff height above level, not the difference in height between sand and dirt.
-	int32 GetElevationAtGridPosition(const FGridPosition& Position) const;
-	ETerrainType GetTerrainTypeAtGridPosition(const FGridPosition& Position) const;
-	AActor* GetActorAtGridPosition(const FGridPosition& Position) const;
-	TSoftObjectPtr<UDigActualizer> GetDigActualizerAtPosition(const FGridPosition& Position) const;
-	TTuple<int32, int32> GetDetectionDataAtPosition(const FGridPosition& Position) const;
+	int32 GetElevationAtGridPosition(const FGridVector& Position) const;
+	ETerrainType GetTerrainTypeAtGridPosition(const FGridVector& Position) const;
+	AActor* GetActorAtGridPosition(const FGridVector& Position) const;
+	TSoftObjectPtr<UDigActualizer> GetDigActualizerAtPosition(const FGridVector& Position) const;
+	TTuple<int32, int32> GetDetectionDataAtPosition(const FGridVector& Position) const;
 
-	bool IsSpaceUniformAndVacant(const FGridPosition& StartPosition, const FGridPosition& EndPosition) const;
-	bool GetVacantPositionAtOrNearPosition(const FGridPosition& CurrentPosition, const FGridPosition& Size, FGridPosition& VacantPosition);
+	// returns an invalid GridVector if actor is not on grid
+	FGridVector GetActorGridSize(AActor* Actor) const;
 
-	bool GetGridPositionAtWorldLocation(const FVector& WorldLocation, FGridPosition& OutPosition) const;
-	void GetWorldLocationAtGridPosition(const FGridPosition& Position, FVector& OuWorldLocation) const;
-	void GetWorldLocationCenteredAtGridPosition(const FGridPosition& Position, FVector& OutWorldLocation) const;
+	// whether this actor is stored on the grid
+	bool IsActorOnGrid(AActor* Actor) const;
 
-	bool TryPlaceActorOnGrid(AActor* Actor, const FGridPosition& DesiredPosition, bool bCanAdjust, FGridPosition& FinalPosition);
+	// returns true if the position is a valid position on the grid. to see if the actor is actually stored on the grid, use IsActorOnGrid
+	bool GetActorGridPosition(AActor* Actor, FGridVector& OutPosition) const;
+
+	bool IsSpaceUniformAndVacant(const FGridVector& StartPosition, const FGridVector& EndPosition) const;
+	bool GetVacantPositionAtOrNearPosition(const FGridVector& CurrentPosition, const FGridVector& Size, FGridVector& VacantPosition);
+
+	// returns true if this position is on the grid
+	bool GetGridPositionAtWorldLocation(const FVector& WorldLocation, FGridVector& OutPosition) const;
+
+	// returns a world location that is at the center of the grid position
+	FVector GetWorldLocationAtGridPosition(const FGridVector& Position) const;
+
+	AActor* TrySpawnActorOnGrid(const UAEMetaAsset* ActorAsset, const FWorldGridActorSpawnParameters& GridSpawnParams, TFunction<void(AActor*)> PreFinalizeConstructionCallback = nullptr);
+	AActor* TrySpawnSmallActorOnGrid(TSubclassOf<AActor> ActorClass, const FWorldGridActorSpawnParameters& GridSpawnParams, TFunction<void(AActor*)> PreFinalizeConstructionCallback = nullptr);
+
 	bool RemoveActorFromGrid(AActor* Actor);
 
-	bool TryPlaceDigActualizerOnGrid(TSoftObjectPtr<UDigActualizer> Actualizer, const FGridPosition& DesiredPosition);
-	TSoftObjectPtr<UDigActualizer> TryRemoveDigActualizerFromGrid(const FGridPosition& Position);
+	bool TryPlaceDigActualizerOnGrid(TSoftObjectPtr<UDigActualizer> Actualizer, const FGridVector& DesiredPosition);
+	TSoftObjectPtr<UDigActualizer> TryRemoveDigActualizerFromGrid(const FGridVector& Position);
 
-	void DebugDrawPosition(const FGridPosition& Position, float DisplayTime, const FColor& Color);
+	void DebugDrawPosition(const FGridVector& Position, float DisplayTime, const FColor& Color);
 
 private:
 
-	void SetActorAtPositions(AActor* Actor, const FGridPosition& StartPosition, const FGridPosition& EndPosition);
-	void SetTerrainTypeAtPositions(ETerrainType TerrainType, const FGridPosition& StartPosition, const FGridPosition& EndPosition);
-	void SetElevationAtPositions(int32 Elevation, const FGridPosition& StartPosition, const FGridPosition& EndPosition);
-	void SetDigActualizerAtPosition(TSoftObjectPtr<UDigActualizer> DigActualizer, const FGridPosition& Position);
-	void SetDetectionDataAtPosition(const TTuple<int32, int32>& DetectionData, const FGridPosition& Position);
+	FVector GetWorldLocationAtGridPosition_Internal(const FGridVector& Position) const;
 
-	int32 GetArrayIndexForGridPosition(const FGridPosition& Position) const;
+	AActor* SpawnActorOnGrid_Internal(TSubclassOf<AActor> ActorClass, const FGridVector& GridPosition, const FGridVector& ActorSize, AActor* Owner, TFunction<void(AActor*)> PreFinalizeConstructionCallback);
+
+	void SetActorAtPositions(AActor* Actor, const FGridVector& StartPosition, const FGridVector& EndPosition);
+	void SetTerrainTypeAtPositions(ETerrainType TerrainType, const FGridVector& StartPosition, const FGridVector& EndPosition);
+	void SetElevationAtPositions(int32 Elevation, const FGridVector& StartPosition, const FGridVector& EndPosition);
+	void SetDigActualizerAtPosition(TSoftObjectPtr<UDigActualizer> DigActualizer, const FGridVector& Position);
+	void SetDetectionDataAtPosition(const TTuple<int32, int32>& DetectionData, const FGridVector& Position);
+
+	int32 GetArrayIndexForGridPosition(const FGridVector& Position) const;
 
 	FWorldGridConfig Config;
 

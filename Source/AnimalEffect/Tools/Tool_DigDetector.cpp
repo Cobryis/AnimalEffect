@@ -21,7 +21,7 @@ void ATool_MetalDetector::Tick(float DeltaSeconds)
 	{
 		UWorldGridSubsystem* WGS = GetWorld()->GetSubsystem<UWorldGridSubsystem>();
 
-		FGridPosition ProbePosition;
+		FGridVector ProbePosition;
 		if (WGS->GetGridPositionAtWorldLocation(GetProbeLocation(), ProbePosition))
 		{
 			ProbePositionCache = ProbePosition;
@@ -70,48 +70,14 @@ void ATool_MetalDetector::OnActivate()
 
 DECLARE_LOG_CATEGORY_CLASS(LogGridMarker, Log, All)
 
-AGridMarker* AGridMarker::NewMarker(const UObject* WorldContextObject, TSubclassOf<AGridMarker> MarkerClass, const FGridPosition& SpawnPosition, APawn* Instigator)
+AGridMarker* AGridMarker::NewMarker(const UObject* WorldContextObject, TSubclassOf<AGridMarker> MarkerClass, const FGridVector& SpawnPosition, APawn* Instigator)
 {
-	if (MarkerClass == nullptr)
-	{
-		UE_LOG(LogGridMarker, Error, TEXT("Attempted to spawn GridMarker with invalid class"));
-		return nullptr;
-	}
+	FWorldGridActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = Instigator;
+	SpawnParams.bCanAdjustPosition = false;
+	SpawnParams.DesiredPosition = SpawnPosition;
 
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::Assert);
-
-	UWorldGridSubsystem* const WGS = World->GetSubsystem<UWorldGridSubsystem>();
-	check(WGS);
-
-	if (!WGS->IsValidPosition(SpawnPosition))
-	{
-		UE_LOG(LogGridMarker, Warning, TEXT("Attempted to spawn GridMarker at invalid position: %s"), *SpawnPosition.ToString());
-		return nullptr;
-	}
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.bDeferConstruction = true;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	SpawnParams.Instigator = Instigator;
-
-	AGridMarker* MarkerActor = World->SpawnActor<AGridMarker>(MarkerClass, FTransform::Identity, SpawnParams);
-
-	// #todo: this part feels a bit rough. maybe we shouldn't be spawning the actor till we know we can place it
-	FGridPosition FinalPosition;
-	if (WGS->TryPlaceActorOnGrid(MarkerActor, SpawnPosition, true, FinalPosition))
-	{
-		FVector WorldLocation;
-		WGS->GetWorldLocationCenteredAtGridPosition(FinalPosition, WorldLocation);
-		MarkerActor->FinishSpawning(FTransform(WorldLocation));
-	}
-	else
-	{
-		UE_LOG(LogGridMarker, Warning, TEXT("Failed to place GridMarker on grid. Destroying GridMarker."));
-		MarkerActor->Destroy();
-		MarkerActor = nullptr;
-	}
-
-	return MarkerActor;
+	return Cast<AGridMarker>(UWorldGridSubsystem::Get(WorldContextObject)->TrySpawnSmallActorOnGrid(MarkerClass, SpawnParams));
 }
 
 AGridMarker::AGridMarker()

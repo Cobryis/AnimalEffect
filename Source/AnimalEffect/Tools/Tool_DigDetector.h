@@ -32,12 +32,12 @@ private:
 
 	float LastBeepTime = 0.f;
 
-	TOptional<FGridPosition> ProbePositionCache;
+	TOptional<FGridVector> ProbePositionCache;
 
 };
 
 UCLASS()
-class ANIMALEFFECT_API AGridMarker : public AActor, public IWorldGridActorInterface
+class ANIMALEFFECT_API AGridMarker : public AActor
 {
 	GENERATED_BODY()
 
@@ -45,18 +45,11 @@ public:
 
 	AGridMarker();
 
-	static AGridMarker* NewMarker(const UObject* WorldContextObject, TSubclassOf<AGridMarker> MarkerClass, const FGridPosition& SpawnPosition, APawn* Instigator);
-
-	void GetWorldGridSize(int32& X, int32& Y) const override { X = Y = 1; }
-	void SetWorldGridPosition(const FGridPosition& InGridPosition) override { GridPosition = InGridPosition; }
-	void GetWorldGridPosition(FGridPosition& OutGridPosition) const override { OutGridPosition = GridPosition; }
+	static AGridMarker* NewMarker(const UObject* WorldContextObject, TSubclassOf<AGridMarker> MarkerClass, const FGridVector& SpawnPosition, APawn* Instigator);
 
 private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh", meta = (AllowPrivateAccess=true))
 	UStaticMeshComponent* MeshComponent;
-
-	UPROPERTY()
-	FGridPosition GridPosition;
 
 };

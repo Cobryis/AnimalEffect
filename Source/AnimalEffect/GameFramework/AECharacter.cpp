@@ -7,6 +7,7 @@
 #include "Items/DropActor.h"
 #include "Items/Interfaces/InteractableActorInterface.h"
 #include "Tools/Tool.h"
+#include "WorldGrid/WorldGridInterface.h"
 #include "WorldGrid/WorldGridSubsystem.h"
 
 #include "Camera/CameraComponent.h"
@@ -48,7 +49,7 @@ void AAECharacter::ScanForInteractables()
 	{
 		CurrentPickup = nullptr; // clear previous scan's pickup
 
-		FGridPosition GridPosition;
+		FGridVector GridPosition;
 		if (WorldGrid->GetGridPositionAtWorldLocation(GetActorLocation(), GridPosition))
 		{
 			// should we be casting to a drop here explicitly? this method is really only for drops
@@ -303,10 +304,10 @@ bool AAECharacter::TryDropItemForSlotHandle(const FInventorySlotHandle& Handle)
 	FInventorySlotData RemovedItem;
 	if (GetInventoryFromHandle(Handle).TryRemoveAtIndex(Handle.SlotIndex, RemovedItem))
 	{
-		FGridPosition DropPosition;
+		FGridVector DropPosition;
 		if (WorldGrid->GetGridPositionAtWorldLocation(GetActorLocation(), DropPosition))
 		{
-			if (WorldGrid->GetVacantPositionAtOrNearPosition(DropPosition, FGridPosition(1, 1), DropPosition))
+			if (WorldGrid->GetVacantPositionAtOrNearPosition(DropPosition, FGridVector(1, 1), DropPosition))
 			{
 				FPickupData PickupData;
 				PickupData.AssetType = RemovedItem.AssetType;
@@ -332,36 +333,25 @@ bool AAECharacter::TryPlaceItemForSlotHandle(const FInventorySlotHandle& Handle)
 	FInventorySlotData ItemSlot;
 	if (GetInventoryFromHandle(Handle).GetAtIndex(Handle.SlotIndex, ItemSlot))
 	{
-		// #hack
-		IWorldGridActorInterface* WorldGridActor = Cast<IWorldGridActorInterface>(ItemSlot.AssetType->GetActorClass().GetDefaultObject());
-		int32 SizeX, SizeY;
-		WorldGridActor->GetWorldGridSize(SizeX, SizeY);
+		// #hack: we should not have to get worldgridinterface here
+		const IWorldGridInterface* WorldGridInterface = Cast<IWorldGridInterface>(ItemSlot.AssetType);
+		const FGridVector ActorSize = WorldGridInterface->GetWorldGridSize();
 
-		const FVector TestLocation = GetActorLocation() + GetActorRotation().Vector() * static_cast<float>(FMath::Max(SizeX, SizeY)) * 100.f;
+		const FVector TestLocation = GetActorLocation() + GetActorRotation().Vector() * static_cast<float>(FMath::Max(ActorSize.X, ActorSize.Y)) * 100.f;
 
-		FGridPosition PlacePosition;
+		FGridVector PlacePosition;
 		if (WorldGrid->GetGridPositionAtWorldLocation(TestLocation, PlacePosition))
 		{
 			WorldGrid->DebugDrawPosition(PlacePosition, 5.f, FColor::Blue);
 
-			FActorSpawnParameters SpawnParams;
-			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			FWorldGridActorSpawnParameters SpawnParams;
+			SpawnParams.bCanAdjustPosition = true;
+			SpawnParams.DesiredPosition = PlacePosition;
 			SpawnParams.Owner = this;
-
-			AActor* PlacingActor = GetWorld()->SpawnActor<AActor>(ItemSlot.AssetType->GetActorClass(), FTransform::Identity, SpawnParams);
-
-			if (WorldGrid->TryPlaceActorOnGrid(PlacingActor, PlacePosition, true, PlacePosition))
+			if (AActor* PlacingActor = WorldGrid->TrySpawnActorOnGrid(ItemSlot.AssetType, SpawnParams))
 			{
-				FVector PlaceLocation;
-				WorldGrid->GetWorldLocationAtGridPosition(PlacePosition, PlaceLocation);
-				PlacingActor->SetActorLocation(PlaceLocation);
-
 				GetInventoryFromHandle(Handle).TryRemoveSingleAtIndex(Handle.SlotIndex, ItemSlot);
 				return true;
-			}
-			else
-			{
-				PlacingActor->Destroy();
 			}
 		}
 		else

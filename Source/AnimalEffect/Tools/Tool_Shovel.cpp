@@ -17,7 +17,7 @@ void ATool_Shovel::OnActivate()
 {
 	UWorldGridSubsystem* WGS = GetWorld()->GetSubsystem<UWorldGridSubsystem>();
 
-	FGridPosition ProbePosition;
+	FGridVector ProbePosition;
 	if (WGS->GetGridPositionAtWorldLocation(GetProbeLocation(), ProbePosition))
 	{
 		AActor* BlockingActor = WGS->GetActorAtGridPosition(ProbePosition);

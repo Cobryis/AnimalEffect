@@ -20,7 +20,7 @@ ADropActor::ADropActor()
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
-ADropActor* ADropActor::NewDrop(const UObject* WorldContextObject, const FGridPosition& SpawnPosition, const FPickupData& PickupData, APawn* Instigator)
+ADropActor* ADropActor::NewDrop(const UObject* WorldContextObject, const FGridVector& SpawnPosition, const FPickupData& PickupData, APawn* Instigator)
 {
 	if (PickupData.AssetType == nullptr)
 	{
@@ -46,60 +46,23 @@ ADropActor* ADropActor::NewDrop(const UObject* WorldContextObject, const FGridPo
 		return nullptr;
 	}
 
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::Assert);
+	FWorldGridActorSpawnParameters SpawnParams;
+	SpawnParams.bCanAdjustPosition = true;
+	SpawnParams.DesiredPosition = SpawnPosition;
+	SpawnParams.Owner = Instigator;
 
-	UWorldGridSubsystem* const WGS = World->GetSubsystem<UWorldGridSubsystem>();
-	check(WGS);
-
-	if (!WGS->IsValidPosition(SpawnPosition))
-	{
-		UE_LOG(LogDrop, Warning, TEXT("Attempted to spawn drop at invalid position: %s"), *SpawnPosition.ToString());
-		return nullptr;
-	}
-
-	const IDropInterface* DropInterface = Cast<IDropInterface>(PickupData.AssetType);
-
-	static int32 DropCount = 0;
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.bDeferConstruction = true;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	SpawnParams.Instigator = Instigator;
-	SpawnParams.Name = *FString::Printf(TEXT("DropActor_%s_%d"), *PickupData.AssetType->GetName(), DropCount);
-
-	DropCount++;
-
-	ADropActor* DropActor = World->SpawnActor<ADropActor>(SpawnParams);
-	DropActor->MeshComponent->SetStaticMesh(DropInterface->GetDropMesh());
-	DropActor->DropText = DropInterface->GetDropDescription();
-	DropActor->PickupData = PickupData;
-
-	// #todo: this part feels a bit rough. maybe we shouldn't be spawning the actor till we know we can place it
-	FGridPosition FinalPosition;
-	if (WGS->TryPlaceActorOnGrid(DropActor, SpawnPosition, true, FinalPosition))
-	{
-		FVector WorldLocation;
-		WGS->GetWorldLocationCenteredAtGridPosition(FinalPosition, WorldLocation);
-		DropActor->FinishSpawning(FTransform(WorldLocation));
-	}
-	else
-	{
-		UE_LOG(LogDrop, Warning, TEXT("Failed to place DropActor on grid. Destroying DropActor."));
-		DropActor->Destroy();
-		DropActor = nullptr;
-	}
-
-	return DropActor;
-}
-
-void ADropActor::SetWorldGridPosition(const FGridPosition& InGridPosition)
-{
-	GridPosition = InGridPosition;
-}
-
-void ADropActor::GetWorldGridPosition(FGridPosition& OutGridPosition) const
-{
-	OutGridPosition = GridPosition;
+	return Cast<ADropActor>
+	(
+		UWorldGridSubsystem::Get(WorldContextObject)->TrySpawnSmallActorOnGrid(ADropActor::StaticClass(), SpawnParams,
+			[&PickupData, Instigator](AActor* SpawningActor)
+			{
+				auto DropActor = static_cast<ADropActor*>(SpawningActor);
+				const IDropInterface* DropInterface = Cast<IDropInterface>(PickupData.AssetType);
+				DropActor->MeshComponent->SetStaticMesh(DropInterface->GetDropMesh());
+				DropActor->DropText = DropInterface->GetDropDescription();
+				DropActor->PickupData = PickupData;
+			})
+	);
 }
 
 ADropSpawner::ADropSpawner()
@@ -118,7 +81,7 @@ void ADropSpawner::BeginPlay()
 
 	const UWorldGridSubsystem* const WGS = GetWorld()->GetSubsystem<UWorldGridSubsystem>();
 
-	FGridPosition DesiredPosition;
+	FGridVector DesiredPosition;
 	if (WGS->GetGridPositionAtWorldLocation(GetActorLocation(), DesiredPosition))
 	{
 		ADropActor::NewDrop(this, DesiredPosition, PickupData, nullptr);

@@ -7,19 +7,21 @@
 #include "WorldGridTypes.generated.h"
 
 USTRUCT(BlueprintType)
-struct ANIMALEFFECT_API FGridPosition
+struct ANIMALEFFECT_API FGridVector
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 X;
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 Y;
 
-	FGridPosition() : X(-1), Y(-1) {}
+	constexpr FGridVector() : X(-1), Y(-1) {}
 
-	FGridPosition(int32 InX, int32 InY) : X(InX), Y(InY) {}
+	constexpr FGridVector(int32 InX, int32 InY) : X(InX), Y(InY) {}
+
+	constexpr FGridVector(int32 InDimension) : X(InDimension), Y(InDimension) {}
 
 	FORCEINLINE void Set(int32 InX, int32 InY)
 	{
@@ -28,7 +30,7 @@ struct ANIMALEFFECT_API FGridPosition
 
 	FORCEINLINE void Invalidate()
 	{
-		X = Y = -1;
+		*this = FGridVector();
 	}
 
 	FORCEINLINE FString ToString() const
@@ -36,13 +38,15 @@ struct ANIMALEFFECT_API FGridPosition
 		return FString::Printf(TEXT("X: %d, Y: %d"), X, Y);
 	}
 
+	FORCEINLINE bool IsDefault() const { return (X == -1) && (Y == -1); }
+
 	FORCEINLINE bool IsValid() const
 	{
-		return (X != -1) && Y != -1;
+		return !IsDefault();
 	}
 };
 
-FGridPosition operator+(const FGridPosition& A, const FGridPosition& B);
+FGridVector operator+(const FGridVector& A, const FGridVector& B);
 
 UENUM()
 enum class ETerrainType : uint8
