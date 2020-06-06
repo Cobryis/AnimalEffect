@@ -30,6 +30,10 @@ public:
 
 	void Tick(float DeltaTime) override;
 
+	void TickEquippedTool(float DeltaTime);
+
+	bool IsPerformingAction() const;
+
 	bool TryStartInteract();
 	void StopInteract();
 
@@ -73,11 +77,13 @@ protected:
 
 	void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	void InstanceTool(TSubclassOf<ATool> ToolClass);
+	ATool* InstanceTool(TSubclassOf<ATool> ToolClass);
 
 	void ScanForInteractables();
 
 private:
+
+	void OnToolFinishAction();
 
 	void SwitchToToolInDirection(bool bDirection);
 
@@ -85,6 +91,9 @@ private:
 
 	void InputAxis_MoveForward(float Value);
 	void InputAxis_MoveRight(float Value);
+
+	void InputAction_SprintPressed();
+	void InputAction_SprintReleased();
 
 	void InputAction_InteractPressed();
 	void InputAction_InteractReleased();
@@ -113,6 +122,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
 	FInventory ToolInventory;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Tool")
+	FName ToolSocket = TEXT("tool_r");
+
 	UPROPERTY(Transient)
 	int32 EquippedToolIndex = INDEX_NONE;
 
@@ -122,13 +134,16 @@ private:
 	UPROPERTY(Transient)
 	ATool* EquippedToolInstance;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Tool")
-	FName ToolSocket = TEXT("tool_r");
+	UPROPERTY(Transient)
+	bool bToolIsPerformingAction;
 
 	UPROPERTY(Transient)
 	UWorldGridSubsystem* WorldGrid;
 
 	UPROPERTY(Transient)
 	TScriptInterface<IPickupActorInterface> CurrentPickup;
+
+	UPROPERTY(Transient)
+	bool bWantsToSprint;
 
 };

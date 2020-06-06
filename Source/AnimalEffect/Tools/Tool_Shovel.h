@@ -15,6 +15,6 @@ public:
 
 	ATool_Shovel();
 
-	void OnActivate() override;
+	void FinalizeAction() override;
 
 };

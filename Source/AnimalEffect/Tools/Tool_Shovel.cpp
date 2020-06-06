@@ -13,7 +13,7 @@ ATool_Shovel::ATool_Shovel()
 
 }
 
-void ATool_Shovel::OnActivate()
+void ATool_Shovel::FinalizeAction()
 {
 	UWorldGridSubsystem* WGS = GetWorld()->GetSubsystem<UWorldGridSubsystem>();
 

@@ -18,7 +18,7 @@ public:
 
 	void Tick(float DeltaSeconds) override;
 
-	void OnActivate() override;
+	void FinalizeAction() override;
 
 private:
 

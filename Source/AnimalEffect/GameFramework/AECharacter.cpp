@@ -38,6 +38,21 @@ void AAECharacter::Tick(float DeltaTime)
 	GEngine->AddOnScreenDebugMessage(1, 0.f, FColor::Green, FString::Printf(TEXT("CurrentTool: %s"), IsValid(EquippedToolInstance) ? *EquippedToolInstance->GetName() : TEXT("none")));
 
 	ScanForInteractables();
+
+	TickEquippedTool(DeltaTime);
+}
+
+void AAECharacter::TickEquippedTool(float DeltaTime)
+{
+	if (IsValid(EquippedToolInstance) && !IsPerformingAction())
+	{
+		EquippedToolInstance->Tick(DeltaTime);
+	}
+}
+
+bool AAECharacter::IsPerformingAction() const
+{
+	return bToolIsPerformingAction;
 }
 
 void AAECharacter::ScanForInteractables()
@@ -69,12 +84,18 @@ void AAECharacter::ScanForInteractables()
 
 bool AAECharacter::TryStartInteract()
 {
+	bWantsToSprint = false; // stop sprinting to start our action?
+
 	// #todo: decide between tool or thing in front of you to interact 
 
-	if (IsValid(EquippedToolInstance))
+	if (IsValid(EquippedToolInstance) && !IsPerformingAction()) // #note: this will probably need to change for a tool that takes additional action input (like the fishing rod)
 	{
-		EquippedToolInstance->OnActivate();
-		return true;
+		if (EquippedToolInstance->HasAction())
+		{
+			EquippedToolInstance->StartAction(FOnToolFinishAction::CreateUObject(this, &AAECharacter::OnToolFinishAction));
+			bToolIsPerformingAction = true;
+			return true;
+		}
 	}
 	return false;
 }
@@ -82,6 +103,12 @@ bool AAECharacter::TryStartInteract()
 void AAECharacter::StopInteract()
 {
 
+}
+
+void AAECharacter::OnToolFinishAction()
+{
+	check(IsValid(EquippedToolInstance));
+	bToolIsPerformingAction = false;
 }
 
 bool AAECharacter::TryPickup()
@@ -140,31 +167,51 @@ void AAECharacter::SwitchToToolInDirection(bool bDirection)
 
 void AAECharacter::EquipTool(int32 ToolIndex)
 {
+	if (IsPerformingAction())
+	{
+		return;
+	}
+
 	if (EquippedToolIndex != INDEX_NONE)
 	{
 		UnequipTool(EquippedToolIndex);
 	}
 
+	check(EquippedToolIndex == INDEX_NONE);
+
 	FInventorySlotData Tool;
 	if (ToolInventory.GetAtIndex(ToolIndex, Tool))
 	{
 		// #todo: replicate Tool.Class and Call InstanceTool upon replication. 
-		InstanceTool(*Tool.AssetType->GetActorClass());
-		EquippedToolIndex = ToolIndex;
-	}
-	else
-	{
-		EquippedToolIndex = INDEX_NONE;
+		EquippedToolInstance = InstanceTool(*Tool.AssetType->GetActorClass());
+
+		if (IsValid(EquippedToolInstance))
+		{
+			EquippedToolIndex = ToolIndex;
+
+			EquippedToolInstance->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, ToolSocket);
+			EquippedToolInstance->OnEquipped();
+		}
+		else
+		{
+			UE_LOG(LogAECharacter, Error, TEXT("Failed to equip tool '%s'"), *Tool.AssetType->GetName());
+		}
 	}
 }
 
 void AAECharacter::UnequipTool(int32 ToolIndex)
 {
+	if (IsPerformingAction())
+	{
+		return;
+	}
+
 	LastEquippedToolIndex = EquippedToolIndex;
 	EquippedToolIndex = INDEX_NONE;
 
 	if (IsValid(EquippedToolInstance))
 	{
+		EquippedToolInstance->OnUnequipped();
 		EquippedToolInstance->Destroy();
 		EquippedToolInstance = nullptr;
 	}
@@ -296,6 +343,8 @@ void AAECharacter::OnInventorySlotActionSelectedForHandle(const FInventorySlotHa
 
 bool AAECharacter::TryDropItemForSlotHandle(const FInventorySlotHandle& Handle)
 {
+	check(!IsPerformingAction()); // this callback should really only come from a menu, during which we should not be in the state "IsPerformingAction"
+
 	if (Handle.InventoryType == EInventoryType::Tool && Handle.SlotIndex == EquippedToolIndex)
 	{
 		EquipTool(INDEX_NONE);
@@ -325,6 +374,8 @@ bool AAECharacter::TryDropItemForSlotHandle(const FInventorySlotHandle& Handle)
 
 bool AAECharacter::TryPlaceItemForSlotHandle(const FInventorySlotHandle& Handle)
 {
+	check(!IsPerformingAction()); // this callback should really only come from a menu, during which we should not be in the state "IsPerformingAction"
+
 	if (Handle.InventoryType == EInventoryType::Tool && Handle.SlotIndex == EquippedToolIndex)
 	{
 		EquipTool(INDEX_NONE);
@@ -389,6 +440,9 @@ void AAECharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputC
 	PlayerInputComponent->BindAxis(TEXT("MoveForward"), this, &AAECharacter::InputAxis_MoveForward);
 	PlayerInputComponent->BindAxis(TEXT("MoveRight"), this, &AAECharacter::InputAxis_MoveRight);
 
+	PlayerInputComponent->BindAction(TEXT("Sprint"), IE_Pressed, this, &AAECharacter::InputAction_SprintPressed);
+	PlayerInputComponent->BindAction(TEXT("Sprint"), IE_Released, this, &AAECharacter::InputAction_SprintReleased);
+
 	PlayerInputComponent->BindAction(TEXT("Interact"), IE_Pressed, this, &AAECharacter::InputAction_InteractPressed);
 	PlayerInputComponent->BindAction(TEXT("Interact"), IE_Released, this, &AAECharacter::InputAction_InteractReleased);
 
@@ -399,7 +453,7 @@ void AAECharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputC
 	PlayerInputComponent->BindAction(TEXT("EquipPreviousTool"), IE_Pressed, this, &AAECharacter::InputAction_EquipPreviousTool);
 }
 
-void AAECharacter::InstanceTool(TSubclassOf<ATool> ToolClass)
+ATool* AAECharacter::InstanceTool(TSubclassOf<ATool> ToolClass)
 {
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = this;
@@ -407,9 +461,10 @@ void AAECharacter::InstanceTool(TSubclassOf<ATool> ToolClass)
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SpawnParams.Template = ToolClass.GetDefaultObject();
 
-	EquippedToolInstance = GetWorld()->SpawnActor<ATool>(ToolClass, FTransform::Identity, SpawnParams);
-	EquippedToolInstance->FinishSpawning(FTransform::Identity);
-	EquippedToolInstance->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, ToolSocket);
+	ATool* InstancedTool = GetWorld()->SpawnActor<ATool>(ToolClass, FTransform::Identity, SpawnParams);
+	InstancedTool->FinishSpawning(FTransform::Identity);
+
+	return InstancedTool;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -418,12 +473,31 @@ void AAECharacter::InstanceTool(TSubclassOf<ATool> ToolClass)
 
 void AAECharacter::InputAxis_MoveForward(float Value)
 {
-	AddMovementInput(FVector::RightVector, FMath::Clamp(-Value, -1.f, 1.f));
+	if (!IsPerformingAction())
+	{
+		AddMovementInput(FVector::RightVector, FMath::Clamp(-Value, -1.f, 1.f));
+	}
 }
 
 void AAECharacter::InputAxis_MoveRight(float Value)
 {
-	AddMovementInput(FVector::ForwardVector, FMath::Clamp(Value, -1.f, 1.f));
+	if (!IsPerformingAction())
+	{
+		AddMovementInput(FVector::ForwardVector, FMath::Clamp(Value, -1.f, 1.f));
+	}
+}
+
+void AAECharacter::InputAction_SprintPressed()
+{
+	if (!IsPerformingAction())
+	{
+		bWantsToSprint = true;
+	}
+}
+
+void AAECharacter::InputAction_SprintReleased()
+{
+	bWantsToSprint = false;
 }
 
 void AAECharacter::InputAction_InteractPressed()
@@ -438,20 +512,32 @@ void AAECharacter::InputAction_InteractReleased()
 
 void AAECharacter::InputAction_PickupPressed()
 {
-	TryPickup();
+	if (!IsPerformingAction())
+	{
+		TryPickup();
+	}
 }
 
 void AAECharacter::InputAction_EquipNextTool()
 {
-	SwitchToToolInDirection(true);
+	if (!IsPerformingAction())
+	{
+		SwitchToToolInDirection(true);
+	}
 }
 
 void AAECharacter::InputAction_EquipPrecedingTool()
 {
-	SwitchToToolInDirection(false);
+	if (!IsPerformingAction())
+	{
+		SwitchToToolInDirection(false);
+	}
 }
 
 void AAECharacter::InputAction_EquipPreviousTool()
 {
-	EquipTool(LastEquippedToolIndex);
+	if (!IsPerformingAction())
+	{
+		EquipTool(LastEquippedToolIndex);
+	}
 }

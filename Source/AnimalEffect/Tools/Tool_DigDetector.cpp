@@ -9,8 +9,7 @@
 ATool_MetalDetector::ATool_MetalDetector()
 	: ATool()
 {
-	PrimaryActorTick.bCanEverTick = true;
-	PrimaryActorTick.TickInterval = .1f;
+
 }
 
 void ATool_MetalDetector::Tick(float DeltaSeconds)
@@ -19,17 +18,15 @@ void ATool_MetalDetector::Tick(float DeltaSeconds)
 
 	if (bIsDetectorActive)
 	{
-		UWorldGridSubsystem* WGS = GetWorld()->GetSubsystem<UWorldGridSubsystem>();
-
 		FGridVector ProbePosition;
-		if (WGS->GetGridPositionAtWorldLocation(GetProbeLocation(), ProbePosition))
+		if (GetWorldGrid()->GetGridPositionAtWorldLocation(GetProbeLocation(), ProbePosition))
 		{
 			ProbePositionCache = ProbePosition;
 
 			LastBeepTime += DeltaSeconds;
 
 			// first value is rarity, second is distance. where 0 is closest to target
-			TTuple<int32, int32> DetectionData = WGS->GetDetectionDataAtPosition(ProbePosition);
+			TTuple<int32, int32> DetectionData = GetWorldGrid()->GetDetectionDataAtPosition(ProbePosition);
 			// rarity must be greater than 1
 			const int32 Rarity = DetectionData.Get<0>();
 			if (Rarity > 0)
@@ -55,12 +52,12 @@ void ATool_MetalDetector::Tick(float DeltaSeconds)
 				}
 			}
 
-			WGS->DebugDrawPosition(ProbePosition, .1f, FColor::Green);
+			GetWorldGrid()->DebugDrawPosition(ProbePosition, .1f, FColor::Green);
 		}
 	}
 }
 
-void ATool_MetalDetector::OnActivate()
+void ATool_MetalDetector::FinalizeAction()
 {
 	if (ProbePositionCache.IsSet())
 	{
