@@ -16,25 +16,7 @@ FPickupData UDigActualizer::Actualize() const
 	return FPickupData();
 }
 
-ADigActualizerSpawner::ADigActualizerSpawner()
-	: AActor()
+bool ADigActualizerSpawner::TrySpawn_Internal(UWorldGridSubsystem* WorldGrid, const FGridVector& DesiredPosition)
 {
-	SetRootComponent(CreateDefaultSubobject<USceneComponent>(TEXT("Root")));
-}
-
-void ADigActualizerSpawner::BeginPlay()
-{
-	Super::BeginPlay();
-
-	UWorldGridSubsystem* UGS = GetWorld()->GetSubsystem<UWorldGridSubsystem>();
-
-	FGridVector GridPosition;
-	if (UGS->GetGridPositionAtWorldLocation(GetActorLocation(), GridPosition))
-	{
-		UGS->TryPlaceDigActualizerOnGrid(Actualizer, GridPosition);
-	}
-	else
-	{
-		UE_LOG(LogDigActualizer, Warning, TEXT("DigActualizer spawner '%s' cannot find position on grid to spawn drop"), *GetName());
-	}
+	return WorldGrid->TryPlaceDigActualizerOnGrid(Actualizer, DesiredPosition);
 }

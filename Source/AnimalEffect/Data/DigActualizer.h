@@ -3,9 +3,9 @@
 #pragma once
 
 #include "Items/Interfaces/PickupActorInterface.h" // #note: the fact that we're not using the interface here suggests we shouldn't include this
+#include "Misc/WorldGridSpawner.h"
 
 #include "Engine/DataAsset.h"
-#include "GameFramework/Actor.h"
 
 #include "DigActualizer.generated.h"
 
@@ -38,15 +38,13 @@ public:
 };
 
 UCLASS()
-class ANIMALEFFECT_API ADigActualizerSpawner : public AActor
+class ANIMALEFFECT_API ADigActualizerSpawner : public AWorldGridSpawner
 {
 	GENERATED_BODY()
 
-public:
+protected:
 
-	ADigActualizerSpawner();
-
-	void BeginPlay() override;
+	bool TrySpawn_Internal(UWorldGridSubsystem* WorldGrid, const FGridVector& DesiredPosition) override;
 
 private:
 

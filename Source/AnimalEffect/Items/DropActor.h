@@ -3,14 +3,15 @@
 #pragma once
 
 #include "Interfaces/PickupActorInterface.h"
-#include "WorldGrid/WorldGridInterface.h"
+#include "Misc/WorldGridSpawner.h"
 
 #include "GameFramework/Actor.h"
 
 #include "DropActor.generated.h"
 
-UCLASS()
-class ANIMALEFFECT_API ADropActor : public AActor, public IPickupActorInterface
+UCLASS(NotBlueprintable)
+class ANIMALEFFECT_API ADropActor : public AActor
+	, public IPickupActorInterface
 {
 	GENERATED_BODY()
 
@@ -44,15 +45,13 @@ private:
 
 // utility class for placing a drop in the world in the editor
 UCLASS()
-class ANIMALEFFECT_API ADropSpawner : public AActor
+class ANIMALEFFECT_API ADropSpawner : public AWorldGridSpawner
 {
 	GENERATED_BODY()
 
-public:
+protected:
 
-	ADropSpawner();
-
-	void BeginPlay() override;
+	bool TrySpawn_Internal(UWorldGridSubsystem* WorldGrid, const FGridVector& DesiredPosition) override;
 
 private:
 

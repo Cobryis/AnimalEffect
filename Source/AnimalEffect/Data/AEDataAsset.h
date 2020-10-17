@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "WorldGrid/WorldGridInterface.h"
-
 #include "Engine/DataAsset.h"
 #include "UObject/UObjectAnnotation.h"
 

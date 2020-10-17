@@ -6,7 +6,6 @@
 
 #include "Tool_DigDetector.generated.h"
 
-// #todo: move me to my own file
 UCLASS()
 class ANIMALEFFECT_API ATool_MetalDetector : public ATool
 {

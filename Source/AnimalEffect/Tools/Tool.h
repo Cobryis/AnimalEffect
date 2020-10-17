@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Items/ItemAsset.h"
+#include "WorldGrid/WorldGridTypes.h"
 
 #include "GameFramework/Actor.h"
 

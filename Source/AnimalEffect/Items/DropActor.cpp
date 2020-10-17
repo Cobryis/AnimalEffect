@@ -65,29 +65,7 @@ ADropActor* ADropActor::NewDrop(const UObject* WorldContextObject, const FGridVe
 	);
 }
 
-ADropSpawner::ADropSpawner()
-	: AActor()
+bool ADropSpawner::TrySpawn_Internal(UWorldGridSubsystem* WorldGrid, const FGridVector& DesiredPosition)
 {
-	UBillboardComponent* IconComponent = CreateDefaultSubobject<UBillboardComponent>(TEXT("Icon"));
-	// #todo: set icon texture in editor
-	SetRootComponent(IconComponent);
-}
-
-void ADropSpawner::BeginPlay()
-{
-	Super::BeginPlay();
-
-	// #todo: eventually we should show the drop in editor before begin play
-
-	const UWorldGridSubsystem* const WGS = GetWorld()->GetSubsystem<UWorldGridSubsystem>();
-
-	FGridVector DesiredPosition;
-	if (WGS->GetGridPositionAtWorldLocation(GetActorLocation(), DesiredPosition))
-	{
-		ADropActor::NewDrop(this, DesiredPosition, PickupData, nullptr);
-	}
-	else
-	{
-		UE_LOG(LogDrop, Warning, TEXT("Drop spawner '%s' cannot find position on grid to spawn drop"), *GetName());
-	}
+	return IsValid(ADropActor::NewDrop(this, DesiredPosition, PickupData, nullptr));
 }
